@@ -1,12 +1,9 @@
 import time
-from typing import Optional
 import psycopg2
 from fastapi import FastAPI, Request, HTTPException, Response, Depends, status
 from psycopg2.extras import RealDictCursor
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from fastapi.params import Body
-from app import models
+from app import models, schemas
 from app.database import engine, get_db
 
 models.Base.metadata.create_all(bind=engine)
@@ -14,13 +11,6 @@ models.Base.metadata.create_all(bind=engine)
 app: FastAPI = FastAPI()
 
 get_db()
-
-
-class Post(BaseModel):
-    title: str
-    content: str
-    published: bool = True
-
 
 while True:
     try:
@@ -35,23 +25,17 @@ while True:
         time.sleep(2)
 
 
-@app.get("/")
-async def root():
-    arr = [x for x in range(5)]
-    return {"message": arr}
-
-
 @app.get("/posts")
 def get_posts(db: Session = Depends(get_db)):
     # cursor.execute("""SELECT * FROM posts""")
     # posts = cursor.fetchall()
     posts = db.query(models.Post).all()
     print(posts)
-    return {"message": posts}
+    return posts
 
 
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
-def create_posts(post: Post, db: Session = Depends(get_db)):
+def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db)):
     # cursor.execute("""INSERT INTO posts (title, content) VALUES (%s, %s) RETURNING * """, (post.title, post.content))
     # new_post = cursor.fetchone()
     # conn.commit()
@@ -60,7 +44,7 @@ def create_posts(post: Post, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_post)
 
-    return {"message": new_post}
+    return new_post
 
 
 @app.get("/posts/{id}")
@@ -72,7 +56,7 @@ def get_post(id: int, db: Session = Depends(get_db)):
 
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id : {id} was not found")
-    return {"post_details": post}
+    return post
 
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -92,7 +76,7 @@ def delete_post(id: int, db: Session = Depends(get_db)):
 
 
 @app.put("/posts/{id}")
-def update_post(id: int, post: Post, db: Session = Depends(get_db)):
+def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)):
     # cursor.execute("""UPDATE posts SET title = %s , content = %s WHERE id = %s RETURNING * """,
     #                (post.title, post.content, str(id)))
     #
@@ -107,4 +91,4 @@ def update_post(id: int, post: Post, db: Session = Depends(get_db)):
     post_query.update(post.dict(), synchronize_session=False)
     db.commit()
 
-    return {"data": post_query.first()}
+    return post_query.first()
