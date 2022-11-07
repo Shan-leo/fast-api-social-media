@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from fastapi import FastAPI, Request, HTTPException, Response, Depends, status, APIRouter
-from app import models, schemas
+from app import models, schemas, oath2
 from app.database import get_db
 
 router = APIRouter(
@@ -19,10 +19,13 @@ def get_posts(db: Session = Depends(get_db)):
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse)
-def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db)):
+def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db),
+                 user_id: int = Depends(oath2.get_current_user)):
     # cursor.execute("""INSERT INTO posts (title, content) VALUES (%s, %s) RETURNING * """, (post.title, post.content))
     # new_post = cursor.fetchone()
     # conn.commit()
+
+    print(user_id)
     new_post = models.Post(**post.dict())
     db.add(new_post)
     db.commit()
@@ -44,7 +47,7 @@ def get_post(id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(id: int, db: Session = Depends(get_db)):
+def delete_post(id: int, db: Session = Depends(get_db), user_id: int = Depends(oath2.get_current_user)):
     # cursor.execute("""DELETE FROM posts WHERE id = %s RETURNING * """, (str(id),))
     # deleted_post = cursor.fetchone()
     # conn.commit()
