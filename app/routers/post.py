@@ -1,3 +1,5 @@
+from typing import List
+
 from sqlalchemy.orm import Session
 from fastapi import FastAPI, Request, HTTPException, Response, Depends, status, APIRouter
 from app import models, schemas, oath2
@@ -9,7 +11,7 @@ router = APIRouter(
 )
 
 
-@router.get("/")
+@router.get("/", response_model=List[schemas.PostResponse])
 def get_posts(db: Session = Depends(get_db)):
     # cursor.execute("""SELECT * FROM posts""")
     # posts = cursor.fetchall()
@@ -20,13 +22,12 @@ def get_posts(db: Session = Depends(get_db)):
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse)
 def create_posts(post: schemas.PostCreate, db: Session = Depends(get_db),
-                 user_id: int = Depends(oath2.get_current_user)):
+                 current_user: int = Depends(oath2.get_current_user)):
     # cursor.execute("""INSERT INTO posts (title, content) VALUES (%s, %s) RETURNING * """, (post.title, post.content))
     # new_post = cursor.fetchone()
     # conn.commit()
-
-    print(user_id)
-    new_post = models.Post(**post.dict())
+    print(current_user)
+    new_post = models.Post(user_id=current_user.id, **post.dict())
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
@@ -47,7 +48,7 @@ def get_post(id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(id: int, db: Session = Depends(get_db), user_id: int = Depends(oath2.get_current_user)):
+def delete_post(id: int, db: Session = Depends(get_db), current_user: int = Depends(oath2.get_current_user)):
     # cursor.execute("""DELETE FROM posts WHERE id = %s RETURNING * """, (str(id),))
     # deleted_post = cursor.fetchone()
     # conn.commit()
@@ -56,6 +57,9 @@ def delete_post(id: int, db: Session = Depends(get_db), user_id: int = Depends(o
     if post.first() is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Post with id:{id} does not exist")
 
+    if post.first().user_id is not current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to perform requested action")
+
     post.delete(synchronize_session=False)
     db.commit()
 
@@ -63,7 +67,8 @@ def delete_post(id: int, db: Session = Depends(get_db), user_id: int = Depends(o
 
 
 @router.put("/{id}", response_model=schemas.PostResponse)
-def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)):
+def update_post(id: int, updated_post: schemas.PostCreate, db: Session = Depends(get_db),
+                current_user: int = Depends(oath2.get_current_user)):
     # cursor.execute("""UPDATE posts SET title = %s , content = %s WHERE id = %s RETURNING * """,
     #                (post.title, post.content, str(id)))
     #
@@ -72,10 +77,17 @@ def update_post(id: int, post: schemas.PostCreate, db: Session = Depends(get_db)
 
     post_query = db.query(models.Post).filter(models.Post.id == id)
 
-    if post_query.first() is None:
+    post = post_query.first()
+
+    if post is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with id: {id} does not exist")
 
-    post_query.update(post.dict(), synchronize_session=False)
+    print(current_user)
+
+    if post.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Not authorized to perform requested action")
+
+    post_query.update(updated_post.dict(), synchronize_session=False)
     db.commit()
 
     return post_query.first()
