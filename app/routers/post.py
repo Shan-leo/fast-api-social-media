@@ -1,7 +1,6 @@
-from typing import List
-
+from typing import List, Optional
 from sqlalchemy.orm import Session
-from fastapi import FastAPI, Request, HTTPException, Response, Depends, status, APIRouter
+from fastapi import HTTPException, Response, Depends, status, APIRouter
 from app import models, schemas, oath2
 from app.database import get_db
 
@@ -12,11 +11,13 @@ router = APIRouter(
 
 
 @router.get("/", response_model=List[schemas.PostResponse])
-def get_posts(db: Session = Depends(get_db)):
+def get_posts(db: Session = Depends(get_db), limit: int = 10, search: Optional[str] = ''):
     # cursor.execute("""SELECT * FROM posts""")
     # posts = cursor.fetchall()
-    posts = db.query(models.Post).all()
-    print(posts)
+
+    print(limit)
+
+    posts = db.query(models.Post).filter(models.Post.title.contains(search)).limit(limit).all()
     return posts
 
 

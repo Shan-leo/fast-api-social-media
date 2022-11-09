@@ -17,3 +17,17 @@ def get_db():
     finally:
         db.close()
 
+
+
+# while True:
+#     try:
+#         conn = psycopg2.connect(host='localhost', database='fastapi', user='postgres', password='Coolipso2022',
+#                                 cursor_factory=RealDictCursor)
+#         cursor = conn.cursor()
+#         print("Database connected successfully")
+#         break
+#     except Exception as error:
+#         print("Connection to database failed")
+#         print("Error", error)
+#         time.sleep(2)
+
