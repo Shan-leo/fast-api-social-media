@@ -1,4 +1,6 @@
 from typing import List, Optional
+
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, Response, Depends, status, APIRouter
 from app import models, schemas, oath2
@@ -18,6 +20,9 @@ def get_posts(db: Session = Depends(get_db), limit: int = 10, search: Optional[s
     print(limit)
 
     posts = db.query(models.Post).filter(models.Post.title.contains(search)).limit(limit).all()
+
+    result = db.query(models.Post, func.count(models.Vote))
+
     return posts
 
 
