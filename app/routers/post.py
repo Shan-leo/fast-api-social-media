@@ -12,7 +12,7 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=List[schemas.PostResponse])
+@router.get("/", response_model=List[schemas.PostOut])
 def get_posts(db: Session = Depends(get_db), limit: int = 10, search: Optional[str] = ''):
     # cursor.execute("""SELECT * FROM posts""")
     # posts = cursor.fetchall()
@@ -21,9 +21,9 @@ def get_posts(db: Session = Depends(get_db), limit: int = 10, search: Optional[s
 
     posts = db.query(models.Post).filter(models.Post.title.contains(search)).limit(limit).all()
 
-    result = db.query(models.Post, func.count(models.Vote))
+    result = db.query(models.Post, func.count(models.Vote.post_id).label("votes")).join(models.Vote, models.Vote.post_id == models.Post.id, isouter=True).group_by(models.Post.id).all()
 
-    return posts
+    return result
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse)
